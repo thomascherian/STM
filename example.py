@@ -8,7 +8,7 @@ def handle_ctrlZ(signum,frame):
 	#model.write_model()
 	print('Exiting!')
 	if(inp_args.saveFlag == 'yes'):
-		print('Model saved in: %s',p.save(model))
+		print('Model saved in: %s',model.save())
 	sys.exit(1)
 
 signal.signal(signal.SIGTSTP, handle_ctrlZ)
@@ -30,14 +30,14 @@ model = STM(detectors=200,terminals=200,c=625,r=35,decay =0.1,learn_rate=0.2,sat
 
 if(inp_args.modelPath):
 	path = inp_args.modelPath
-	model = p.load(path)
+	model = model.load(path)
 else:
 	if inp_args.trainSet:
 		trainSet = DataSet(inp_args.trainSet)
 		model = model.fit(trainSet)
 		print inp_args.trainSet
 		if(inp_args.saveFlag == 'yes'):
-			print('Model saved in: %s',p.save(model))
+			print('Model saved in: %s',model.save())
 	else:
 		"--train argument is required for training a new model."
 		sys.exit(1)
@@ -49,7 +49,5 @@ for lbl in test_labels:
 	print "\nGenerating from "+lbl+": "
 	anticipate = model.generate(lbl,'#')
 	print lbl+"->"+ p.vectostring(anticipate,model.getindtoCharMap())
-#	fsum.write("\n"+lbl+"->"+Processing.vectostring(anticipate))
-
 
 

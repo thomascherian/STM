@@ -5,6 +5,7 @@ import re
 import sys
 import logging
 import pickle
+import os
 
 class STM:
 	def __init__(self,detectors=200,terminals=200,c=625,r=35,decay =0.1,learn_rate=0.2,sat_threshold=10):
@@ -43,6 +44,8 @@ class STM:
 
 #------------------ For log writing.----------------------------
 
+		if not os.path.exists("log"):
+			os.mkdir("log")
 		logf = "log/"+self.timestamp+".txt"
 		logging.basicConfig(filename=logf, format='%(name)s - %(levelname)s - %(message)s',level=logging.INFO)
 	
@@ -339,6 +342,8 @@ class STM:
 		return self.indtochar
 
 	def save(self):
+		if not os.path.exists("model"):
+			os.mkdir("model")
 		modelpath="model/"+self.timestamp+".dat"
 		with open(modelpath,'wb') as modelfile:
 			pickle.dump(self,modelfile)
@@ -385,11 +390,11 @@ class DataSet:
 		if(filepath):
 			self.load(filepath)
 	def load(self,filepath):
-		train_set_f=open(filepath,"r")
-		num=0
-		for line in train_set_f:
-			self.train_set[num] = line
-			num = num + 1
+		with open(filepath) as train_set_f: 
+			num=0
+			for line in train_set_f:
+				self.train_set[num] = line
+				num = num + 1
 		self.dSetSize = len(self.train_set)
 
 		chars = list(string.printable)
@@ -412,15 +417,3 @@ class Utils:
 			for line in file:
 				tcases.append(line.rstrip())
 		return tcases
-	
-	def save(self,model):
-		modelpath="model/"+model.timestamp+".dat"
-		with open(modelpath,'wb') as modelfile:
-			pickle.dump(model,modelfile)
-		logging.info('Model saved in the path: %s',modelpath)
-		return modelpath
-
-	def load(self,modelpath):
-		with open(modelpath,'rb') as modelfile:
-			model = pickle.load(modelfile)
-		return model
