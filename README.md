@@ -9,7 +9,7 @@ Here we implement the network in Python. The model can be invoked as follows:
 
 STM class also supports the pickling and unpickling of the models. Logging is also supported for debugging.
 
-`example.y` provides a walkthrough of the basic usage. It takses the following parameters:
+`example.y` provides a walkthrough of the basic usage. It takes the following parameters:
 * `--train` : Provide the input file path for training a new model
 * `--tf` : Test file path containing start tokens of test instances; each instance in a new line.
 * `--load` : In case of loading an existing model, provide the model path from where the model is to be loaded.
