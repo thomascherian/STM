@@ -5,7 +5,7 @@ Here we implement the network in Python. The model can be invoked as follows:
 
 `model = STM(detectors=200,terminals=200,c=625,r=35,decay =0.1,learn_rate=0.2,sat_threshold=10)`
 
-[Check for the base paper for the details about parameters]
+[Check the base paper/ related article in the `\downloads` for the details about parameters]
 
 STM class also supports the pickling and unpickling of the models. Logging is also supported for debugging.
 
