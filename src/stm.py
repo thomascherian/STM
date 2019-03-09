@@ -145,63 +145,14 @@ class STM:
 		self.Ei.fill(0.0)
 		logging.info('Vectors cleared')
 
-	def write_model(self):
-		'''Saves the model in the specified modelpath'''
 
-		modelpath="model/"+self.timestamp+".dat"	
-	
-		mdl=open(modelpath,"w")
-
-		params = np.array([self.detectors,self.terminals,self.r,self.c,self.decay,self.learn_rate])
-		np.save(mdl,params)
-		np.save(mdl,self.w)
-		np.save(mdl,self.Rij)
-		np.save(mdl,self.det_thr)
-		np.save(mdl,self.det_degree)
-		np.save(mdl,self.Ai)
-		mdl.close()
-		return modelpath
-
-	def load_model(self,modelpath):	
-		'''Loads the model from file and initialize the parameters and vectors from the saved values'''
-		mdl = open(modelpath,"r")
-		params = np.copy(np.load(mdl))
-		self.detectors = params[0]
-		self.terminals = params[1]
-		self.r = params[2]
-		self.c = params[3]
-		self.decay = params[4]
-		self.learn_rate = params[5]
-
-		self.w = np.copy(np.load(mdl))
-		self.Rij = np.copy(np.load(mdl))
-		self.det_thr = np.copy(np.load(mdl))
-		self.det_degree = np.copy(np.load(mdl))
-		self.Ai = np.copy(np.load(mdl))
-
-		mdl.close()
-
-		self.vt = np.zeros((self.terminals,self.r),)			# Activity of SR unit at time t
-		self.vp = np.zeros((self.terminals,self.r),)			# Activity of SR unit at time t-1
-		self.Ij = np.zeros(self.terminals,np.int8)			# Indicates input. Ij[j]=1, if terminal j is active at time t. All others 0
-		self.Oi = np.zeros(self.detectors,np.int8)			# Indicates output of detector. Oi[z]=1 if z is the winner. All others 0
-		self.Mi = np.zeros(self.detectors,np.int8)			# Activity of modulator i
-		self.Ei = np.zeros(self.detectors,)				# Activity of detectors.
-
-		commited = np.count_nonzero(self.det_degree)
-		logging.info("\nDetectors -> Committed: "+str(commited)+" Free: "+str(len(self.det_degree)-commited)+"\n")
-		
-		return self
-
-	def fit(self,train,save = 0):
+	def fit(self,train):
 		'''The method does the training of the model. It fits the dataset to the model and returns the trained model'''
-
-#		logging.info("\nDetectors: "+str(self.detectors)+"\nTerminals: "+str(self.terminals)+"\nr: "+str(self.r)+"\nC: "+str(self.c)+"\ndecay: "+str(self.decay)+"\nLearn Rate: "+str(self.learn_rate))
 
 		logging.info("\nDetectors: %s \nTerminals: %s \nr: %s\nC: %s\ndecay: %s\nLearn Rate: %s", str(self.detectors),str(self.terminals),str(self.r),str(self.c),str(self.decay),str(self.learn_rate))
 
 		self.indtochar = train.indtochar 	#Int to Component map
-		self.charmap = train.charmap	#Component to Int map
+		self.charmap = train.charmap		#Component to Int map
 
 		starttime = t.time()
 		print train.train_set
@@ -222,17 +173,16 @@ class STM:
 		endtime = t.time()
 		tsweeps = np.sum(self.sweep_count)
 		ttime = (endtime-starttime)/60
-		print "\nTraining completed successfully!"
-		print "Sweep Count:\n"
+		print("\nTraining completed successfully! Sweep Count: \n")
 		print self.sweep_count
-		print "\nTotal: "+str(tsweeps)
-		print "\nTime taken for training: "+str(ttime)+" min\n"
+		print("\nTotal: "+str(tsweeps+"\nTime taken for training: "+str(ttime)+" min\n")
 		logging.info("\nTotal Sweeps: "+str(tsweeps)+"\nTime for training: "+str(ttime)+"\n")
-		if save:
-			write_model()
 		return self
 
 	def fit_data(self,size):
+
+	''' Function invokes the sweep method for each sequence in the dataset and tracks the number of sweeps and the total number of anticipation misses. Since this is a memorization network, training process is considered as "complete" only when the total number of anticipation misses after presenting the dataset completely (one 'Epoch') is 0. If not zero, it goes for another epoch. This continues until the total anticipation misses for the epoch is 0. This is the original method adopted in the base paper. For the "Learning and Generalization" we need not follow 100% memorization, but stop the training once it crosses a threshold.'''
+
 		t_miss=0
 		while(1):
 			for line in range(0,size):
@@ -247,6 +197,9 @@ class STM:
 #------------------------Function defines a sweep--------------------------
 
 	def sweep(self,input_vector):
+
+	'''According to the base paper, presenting an input sequence completely to the model is considered as a training sweep. The function defines a training sweep. Takes an input vector as the parameter and returns the number of anticipation misses after the sweep. "Anticipation misses" is the total number of times the anticipated token was different from the actual token in the next time step'''
+
 		mis=0
 		j = input_vector[0]
 		self.Ij.fill(0)
@@ -280,21 +233,19 @@ class STM:
 				self.update_det_degree(z)
 				att = self.Ai[z]
 				self.update_sensitivity(z)		# Lower the sensitivity for det 'z'
-#				f.write( "degree updated for Det: "+str(z) +" from "+str(dd)+" to "+str(det_degree[z])+" Sens from: "+str(att)+" to: "+str(Ai[z])+"\n")
 				mis= mis+1
 				self.one_shot_learn_Rzj(z)
 			else:
 				ant = np.argmax(self.Rij[z])
-#				f.write( "Detector "+ str(z)+" anticipated actv with terminal "+str(ant)+" for "+indtochar[ant]+" succsess!"+"\n" )
 			self.activity_sra()				# Calculate Activity of SR assemblies. 
-#			f.write( "Detector "+str(z)+" associated with next char "+indtochar[np.argmax(Rij[z])]+" with contxt= "+str(det_degree[z])+"\n")
 		return mis
 
 
 #------------------------Function generates the sequence --------------------------
 
 	def generate(self,start,endtok):
-		
+		'''Given the start token and end token, the function generates the learned sequence until it encounters the end token as the anticipated token'''
+
 		logging.info('Generating with start: %s and End: %s',start,endtok)
 		self.clear_vects()
 		anticipation = []
@@ -342,6 +293,8 @@ class STM:
 		return self.indtochar
 
 	def save(self):
+	'''Used to save the model in the "model" folder in the directory. Model will be saved with the timestamp as the file name, with a .dat extension. Returns the model filename.'''
+
 		if not os.path.exists("model"):
 			os.mkdir("model")
 		modelpath="model/"+self.timestamp+".dat"
@@ -351,6 +304,7 @@ class STM:
 		return modelpath
 
 	def load(self,modelpath):
+	''' Loads the model from the modelfile given as the parameter and initializes the model attributes with the loaded values. Returns the loaded model.'''
 		with open(modelpath,'rb') as modelfile:
 			self = pickle.load(modelfile)
 		return self
@@ -373,14 +327,6 @@ class STM:
         	self.__dict__.update(ndict)   # update attributes
 
 
-
-
-#How to return the model?
-'''
-We need to arrange the code into 3 classes - DataSet, STM and Training/Evaluation
-'''
-
-
 class DataSet:
 	def __init__(self,filepath):
 		self.train_set = {}
@@ -389,7 +335,9 @@ class DataSet:
 		self.charmap = {}	#Component to Int map	
 		if(filepath):
 			self.load(filepath)
+
 	def load(self,filepath):
+	'''Loads the dataset from the given path'''
 		with open(filepath) as train_set_f: 
 			num=0
 			for line in train_set_f:
@@ -404,14 +352,16 @@ class DataSet:
 			self.indtochar[j]=chars[j]
 
 class Utils:
-	def vectostring(self,vectlist,indtochar): 			# Takes a vector list and return string
+	def vectostring(self,vectlist,indtochar): 			
+	'''Takes in a vector which is a sequence of encoded characters and converts it back to the string based on the integer-character mapping provided as the parameter'''
 		seq=[]
 		for p in range(len(vectlist)):
-			seq.append(indtochar[vectlist[p]])	# Converting out vector to component list
-		string = ''.join(seq)				# Join list to get back the string
+			seq.append(indtochar[vectlist[p]])	
+		string = ''.join(seq)				
 		return string
 
 	def getTestSet(self,testFile):
+	'''Accepts the testfile path as parameter, loads the file and returns the test cases fetched line by line from the file'''
 		tcases = []
 		with open(testFile) as file: 
 			for line in file:
